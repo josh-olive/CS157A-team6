@@ -1,0 +1,25 @@
+# --- Tomcat server folders  ---
+bin/
+conf/
+lib/
+logs/
+temp/
+work/
+
+# --- Default Tomcat webapps  ---
+webapps/docs/
+webapps/examples/
+webapps/host-manager/
+webapps/manager/
+
+# --- Build artifacts ---
+*.class
+*.war
+*.jar
+
+# --- IDE and OS files ---
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
