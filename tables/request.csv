@@ -1,12 +1,12 @@
-SupplierEmail,VendorEmail,Price,Quantity,ProductID,RequestID,Date/Time
-bayviewvegan@gmail.com,coastalroots@gmail.com,4.99,10,1001,401,"2026‑06‑1 09:45:00"
-campbellcrafts@gmail.com,greenvalley@gmail.com,6.49,23,1002,402,"2026‑06‑2 15:10:00"
-downtowndelights@gmail.com,freshharvest@gmail.com,3.99,50,1003,403,"2026‑07‑13 09:15:00"
-evergreenhandmade@gmail.com,sunnyorchard@gmail.com,7.99,17,1004,404,"2026‑06‑10 11:25:00"
-gardenorganics@gmail.com,valleyroots@gmail.com,5.29,20,1005,405,"2026‑09‑28 11:00:00"
-goldenharvestgrill@gmail.com,goldenfields@gmail.com,8.49,25,1006,406,"2026‑09‑28 10:10:00"
-murphyorganics@gmail.com,bayvieworganics@gmail.com,2.99,35,1007,407,"2026‑09‑12 10:35:00"
-orchardlane@gmail.com,mountainpeak@gmail.com,9.99,10,1008,408,"2026‑07‑28 13:55:00"
-sjstreeteats@gmail.com,evergreengrowers@gmail.com,4.49,23,1009,409,"	2026‑09‑4 15:10:00"
-sunnyvalefresh@gmail.com,riverbendproduce@gmail.com,3.49,82,1010,410,"2026‑08‑14 14:20:00"
-willowgrove@gmail.com,pureearth@gmail.com,5.9,30,1011,411,"2026‑08‑28 15:10:00"
+SupplierEmail,VendorEmail,Price,Quantity,ProductID,RequestID,Date/Time,Status
+bayviewvegan@gmail.com,coastalroots@gmail.com,4.99,10,1001,401,"2026‑06‑1 09:45:00",accepted
+campbellcrafts@gmail.com,greenvalley@gmail.com,6.49,23,1002,402,"2026‑06‑2 15:10:00",rejected
+downtowndelights@gmail.com,freshharvest@gmail.com,3.99,50,1003,403,"2026‑07‑13 09:15:00",accepted
+evergreenhandmade@gmail.com,sunnyorchard@gmail.com,7.99,17,1004,404,"2026‑08‑10 11:25:00",accepted
+gardenorganics@gmail.com,valleyroots@gmail.com,5.29,20,1005,405,"2026‑08‑28 11:00:00",accepted
+goldenharvestgrill@gmail.com,goldenfields@gmail.com,8.49,25,1006,406,"2026‑09‑28 10:10:00",rejected
+murphyorganics@gmail.com,bayvieworganics@gmail.com,2.99,35,1007,407,"2026‑09‑12 10:35:00",accepted
+orchardlane@gmail.com,mountainpeak@gmail.com,9.99,10,1008,408,"2026‑09‑28 13:55:00",accepted
+sjstreeteats@gmail.com,evergreengrowers@gmail.com,4.49,23,1009,409,"	2026‑9‑30 15:10:00",pending
+sunnyvalefresh@gmail.com,riverbendproduce@gmail.com,3.49,82,1010,410,"2026-10‑4 14:20:00",rejected
+willowgrove@gmail.com,pureearth@gmail.com,5.9,30,1011,411,"2026‑10‑28 15:10:00",pending
