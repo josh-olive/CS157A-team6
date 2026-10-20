@@ -168,11 +168,17 @@
     <!-- Top Right Login Box -->
     <div class="login-box">
         <form action="login" method="post">
-            <input type="text" name="username" placeholder="Username" required />
+            <select name="userType" required style="width: 100%; padding: 8px; margin-bottom: 10px; border: 2px solid #4CAF50; border-radius: 4px; outline: none; background: white;">
+                <option value=""disabled selected>Select user type...</option>
+                <option value="Customer">Customer</option>
+                <option value="Vendor">Vendor</option>
+                <option value="Supplier">Supplier</option>
+            </select>
+            <input type="email" name="email" placeholder="Email Address" required style="width: 100%; padding: 8px; margin-bottom: 10px; border: 2px solid #4CAF50; border-radius: 4px; outline: none;" />
             <input type="password" name="password" placeholder="Password" required />
             <div class="btn-group">
                 <button type="submit" class="btn">Login</button>
-                <button type="submit" class="btn" name="action" value="create">Create Account</button>
+                <a href="sproutscout-register.jsp" class="btn" style="text-decoration: none; display: inline-block; line-height: 1.2;">Create Account</a>
             </div>
         </form>
     </div>
@@ -209,13 +215,13 @@
                     stmt = con.createStatement();
 
                     // Querying matching columns from MySQL Workbench schema
-                    rs = stmt.executeQuery("SELECT `Number`, `Name`, `Address` FROM sproutscout.markets");
+                    rs = stmt.executeQuery("SELECT `EventID`, `Content`, `Address` FROM sproutscout.event");
 
                     boolean hasResults = false;
                     while(rs.next()) {
                         hasResults = true;
-                        int id = rs.getInt("Number");
-                        String marketName = rs.getString("Name");
+                        int id = rs.getInt("EventID");
+                        String marketName = rs.getString("Content");
                         String address = rs.getString("Address");
             %>
                         <li class="market-item">
