@@ -215,13 +215,13 @@
                     stmt = con.createStatement();
 
                     // Querying matching columns from MySQL Workbench schema
-                    rs = stmt.executeQuery("SELECT `EventID`, `Content`, `Address` FROM sproutscout.event");
+                    rs = stmt.executeQuery("SELECT `EventID`, `Name`, `Address` FROM sproutscout.event");
 
                     boolean hasResults = false;
                     while(rs.next()) {
                         hasResults = true;
                         int id = rs.getInt("EventID");
-                        String marketName = rs.getString("Content");
+                        String marketName = rs.getString("Name");
                         String address = rs.getString("Address");
             %>
                         <li class="market-item">
