@@ -9,16 +9,8 @@
 </head>
 <body>
 
-    <!-- Top Navigation Bar -->
-    <nav class="navbar">
-        <a href="sproutscout-home.jsp" class="nav-brand">🌱 SproutScout</a>
-        <ul class="nav-links">
-            <li><a href="sproutscout-home.jsp">Markets</a></li>
-            <li><a href="sproutscout-all-vendors.jsp">Vendors</a></li>
-            <li><a href="sproutscout-about.jsp">About Us</a></li>
-            <li><a class="login-nav-btn" onclick="openLoginModal()">Login</a></li>
-        </ul>
-    </nav>
+    <!-- Universal Navigation Bar -->
+    <%@ include file="sproutscout-navbar.jsp" %>
 
     <!-- Pop-up Login Box -->
     <div id="loginModal" class="modal-overlay">
