@@ -72,6 +72,45 @@ body {
     color: white !important;
 }
 
+/* --- Role View  --- */
+.user-type {
+    background-color: #e8f5e9; 
+    color: #1a4329; 
+    padding: 5px 12px; 
+    border-radius: 20px; 
+    font-size: 0.75rem;
+    font-weight: 700; 
+    text-transform: uppercase; letter-spacing: 0.5px; 
+    white-space: nowrap;
+    text-align: center;
+}
+
+.user-auth-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.nav-user-email {
+    font-size: 0.85rem;
+    color: #1a4329;
+}
+
+.logout-form {
+    margin: 0;
+    display: inline;
+}
+
+.login-error-banner {
+    background-color: #fadbd8;
+    color: #c0392b;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
 /* --- Register Page Styles --- */
 .register-container {
     width: 100%; 
@@ -522,6 +561,87 @@ body {
     font-size: 1.05rem;
     color: #4a5d4e;
     margin: 6px 0;
+}
+
+/* Container for card action button */
+.market-action-box {
+    padding: 0 20px 20px 24px;
+    margin-top: 10px;
+}
+
+.market-link {
+    text-decoration: none;
+    color: inherit;
+    padding: 18px; /* Slightly tighter padding to free up horizontal space */
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.date-attendance {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    border-top: 1px solid #e8f5e9;
+    padding-top: 10px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.date-attendance .market-meta {
+    font-size: 0.8rem;
+    color: #5c7561;
+    margin-top: 0;
+    border-top: none;
+    padding-top: 0;
+    white-space: nowrap;
+}
+
+/* --- Vendor Attendance Card Styling --- */
+.market-card.attending-market-card {
+    border: 3px solid #2e6f40 !important;
+    background-color: #f0f7f2 !important;
+    box-shadow: 0 6px 20px rgba(26, 67, 41, 0.18) !important;
+    transform: translateY(-2px);
+}
+
+/* Polished Attending Badge */
+.attending-badge {
+    color: #2e6f40;
+    padding: 2px 6px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    display: inline-block;
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* Attend Event Button */
+.attend-form {
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.btn-attend-inline {
+    background-color: #2d6a4f;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin: 0;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-attend-inline:hover {
+    background-color: #2d6a4f;
+    transform: translateY(-1px);
 }
 
 /* --- 2-Column Split Storefront Layout --- */

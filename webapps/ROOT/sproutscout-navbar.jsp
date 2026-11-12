@@ -2,33 +2,68 @@
 <%
     // Check if a user session is active globally and handle errors if necessary
     String navbarUserEmail = (String) session.getAttribute("userEmail");
+    String navbarUserType = (String) session.getAttribute("userType");
     String errorParam = request.getParameter("error");
 %>
 <!-- Top Navigation Bar -->
 <nav class="navbar">
     <a href="sproutscout-home.jsp" class="nav-brand">🌱 SproutScout</a>
     <ul class="nav-links">
-        <li><a href="sproutscout-home.jsp">Markets</a></li>
-        <li><a href="sproutscout-all-vendors.jsp">Vendors</a></li>
-        <li><a href="sproutscout-about.jsp">About Us</a></li>
         
-        <% if (navbarUserEmail != null && !navbarUserEmail.isEmpty()) { %>
-            <!-- Logged-in View: Email + Logout Button on Top Right -->
-            <li class="user-auth-info">
-                <span class="nav-user-email"><%= navbarUserEmail %></span>
+        <% if (navbarUserEmail == null || navbarUserEmail.isEmpty()) { %>
+            <!-- Default Customer (Logged out) View                 -->
+            <li><a href="sproutscout-home.jsp">Markets</a></li>
+            <li><a href="sproutscout-all-vendors.jsp">Vendors</a></li>
+            <li><a href="sproutscout-about.jsp">About Us</a></li>
+            <li><a class="login-nav-btn" onclick="openLoginModal()">Login</a></li>
+
+        <% } else { %>   
+            <% if ("Vendor".equals(navbarUserType)) { %>
+                <!-- Vendor Nav Links -->
+                <li><a href="sproutscout-home.jsp">Markets</a></li>
+                <li><a href="sproutscout-all-suppliers.jsp">Suppliers</a></li>
+                <li><a href="sproutscout-products.jsp">My Products</a></li>
+                <li><a href="sproutscout-about.jsp">About Us</a></li>
+
+            <% } else if ("Supplier".equals(navbarUserType)) { %>
+                <!-- Supplier Nav Links -->
+                <li><a href="sproutscout-home.jsp">Markets</a></li>
+                <li><a href="sproutscout-all-vendors.jsp">Vendors</a></li>
+                <li><a href="sproutscout-catalog.jsp">My Catalog</a></li>
+                <li><a href="sproutscout-about.jsp">About Us</a></li>
+
+            <% } else { %>
+                <!-- Customer Nav Links -->
+                <li><a href="sproutscout-home.jsp">Markets</a></li>
+                <li><a href="sproutscout-all-vendors.jsp">Vendors</a></li>
+                <li><a href="sproutscout-reviews.jsp">My Reviews</a></li>
+                <li><a href="sproutscout-about.jsp">About Us</a></li>
+            <% } %>
+            
+            <!-- Shared Logged-In User Info & Logout Button -->
+            <li class="user-auth-info" style="display: flex; align-items: center; gap: 15px;">
+                <div style="display: flex; flex-direction: column; text-align: right; line-height: 1.2;">
+                    <span class="nav-user-email" style="font-size: 0.9rem;"><%= navbarUserEmail %></span>
+                    
+                    <% if ("Vendor".equals(navbarUserType)) { %>
+                        <span class="user-type">Vendor View</span>
+                    <% } else if ("Supplier".equals(navbarUserType)) { %>
+                        <span class="user-type">Supplier View</span>
+                    <% } else { %>
+                        <span class="user-type">Customer View</span>
+                    <% } %>
+                </div>
+            
                 <form action="sproutscout-auth.jsp?action=logout" method="post" style="margin: 0; display: inline;">
                     <button type="submit" class="logout-nav-btn">Logout</button>
                 </form>
             </li>
-        <% } else { %>
-            <!-- Logged-out View: Login Trigger -->
-            <li><a class="login-nav-btn" onclick="openLoginModal()">Login</a></li>
         <% } %>
     </ul>
 </nav>
 
 <!-- Pop-up Login Box (Automatically stays open if there is an error) -->
-<div id="loginModal" class="modal-overlay" style="<%= ("invalid_login".equals(errorParam)) ? "display: flex;" : "" %>">
+<div id="loginModal" class="modal-overlay" <%= ("invalid_login".equals(errorParam)) ? "style='display: flex;'" : "" %>>
     <div class="login-modal-box">
         <span class="close-btn" onclick="closeLoginModal()">&times;</span>
         <h3>Account Login</h3>
@@ -36,7 +71,7 @@
         <!-- Visible Error Message -->
         <% if ("invalid_login".equals(errorParam)) { %>
             <div style="background-color: #fadbd8; color: #c0392b; padding: 10px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 12px; text-align: center;">
-                Invalid email or password. Please try again.
+                User, email, and password do not match. Please try again.
             </div>
         <% } %>
 

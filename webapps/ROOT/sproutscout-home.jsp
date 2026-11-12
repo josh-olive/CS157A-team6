@@ -69,11 +69,29 @@
     </div>
 
     <div class="main-content">
+        
+        <%
+            String homeUserType = (String) session.getAttribute("userType");
+            String homeUserEmail = (String) session.getAttribute("userEmail");
+            boolean isLoggedIn = (homeUserEmail != null && !homeUserEmail.isEmpty());
+        %>
 
         <!-- Title + Subtitle + Search Bar Section -->
         <div class="search-section">
-            <h1 class="title">SproutScout</h1>
-            <p class="subtitle">Discover fresh local produce, community farmers markets, and vendors near you.</p>
+            <% if (!isLoggedIn) { %>
+                <h1 class="title">SproutScout</h1>
+                <p class="subtitle">Discover fresh local produce, community farmers markets, and vendors near you.</p>
+            <% } else if ("Vendor".equals(homeUserType)) { %>
+                <h1 class="title">Vendor Portal</h1>
+                <p class="subtitle">Manage your market attendance, coordinate with suppliers, and showcase your booth.</p>
+            <% } else if ("Supplier".equals(homeUserType)) { %>
+                <h1 class="title">Supplier Hub</h1>
+                <p class="subtitle">Connect with active market vendors and manage wholesale distribution channels.</p>
+            <% } else { %>
+                <h1 class="title">Explore Local Markets</h1>
+                <p class="subtitle">Welcome back! Browse upcoming farmers markets and support your favorite local vendors.</p>
+            <% } %>
+
             <input 
                 type="text" 
                 id="searchInput" 
@@ -102,10 +120,23 @@
                         con = DriverManager.getConnection(dbUrl, dbUser, dbPass);
                         stmt = con.createStatement();
 
-                        // Query EventId, Name, Address, Date/Time columns from event table
                         rs = stmt.executeQuery("SELECT EventId, Name, Address, `Date/Time` FROM sproutscout.event");
 
                         boolean hasResults = false;
+                        boolean isVendor = "Vendor".equals(homeUserType);
+                        String currentVendorName = null;
+
+                        if (isVendor && homeUserEmail != null) {
+                            String vNameQuery = "SELECT Name FROM sproutscout.vendor WHERE UserEmail = ?";
+                            try (PreparedStatement vpst = con.prepareStatement(vNameQuery)) {
+                                vpst.setString(1, homeUserEmail);
+                                try (ResultSet vrs = vpst.executeQuery()) {
+                                    if (vrs.next()) {
+                                        currentVendorName = vrs.getString("Name");
+                                    }
+                                }
+                            }
+                        }
                         
                         while(rs.next()) {
                             hasResults = true;
@@ -114,23 +145,58 @@
                             String address = rs.getString("Address");
                             String dateTime = rs.getString("Date/Time");
                             double marketAverageRating = getMarketAverageRating(con, String.valueOf(eventId));
+
+                            boolean isAttending = false;
+                            if (isVendor && currentVendorName != null) {
+                                String checkAttendSql = "SELECT 1 FROM sproutscout.attends WHERE EventID = ? AND VendorName = ?";
+                                try (PreparedStatement cpst = con.prepareStatement(checkAttendSql)) {
+                                    cpst.setInt(1, eventId);
+                                    cpst.setString(2, currentVendorName);
+                                    try (ResultSet crs = cpst.executeQuery()) {
+                                        if (crs.next()) {
+                                            isAttending = true;
+                                        }
+                                    }
+                                }
+                            }
                 %>
-                            <li class="market-card">
-                                <!-- eventid from the event table passed into the URL query string -->
-                                <a href="sproutscout-vendors.jsp?id=<%= eventId %>" class="market-link">
+                            <li class="market-card <%= (isVendor && isAttending) ? "attending-market-card" : "" %>">
+                                <div class="market-link">
                                     <div class="card-header">
-                                        <h3 class="market-name"><%= name %></h3>
+                                        <h3 class="market-name">
+                                            <a href="sproutscout-vendors.jsp?id=<%= eventId %>" style="text-decoration: none; color: inherit;">
+                                                <%= name %>
+                                            </a>  
+                                        </h3>
                                         <span class="market-rating">&#9733; <%= String.format("%.1f", marketAverageRating) %></span>
                                     </div>
                                     <p class="market-address">
                                         <strong>Location:</strong> <%= (address != null && !address.trim().isEmpty() ? address : "Address unavailable") %>
                                     </p>
+
+                                    <div class="date-attendance">
                                     <% if (dateTime != null && !dateTime.trim().isEmpty()) { %>
                                         <div class="market-meta">
                                             <strong>Date/Time:</strong> <%= dateTime %>
                                         </div>
                                     <% } %>
-                                </a>
+                            
+                                    <% if ("Vendor".equals(homeUserType)) { %>
+                                        <% if (isAttending) { %>
+                                            <span class="attending-badge">✓ Attending</span>
+                                        <% } else { %>
+                                            <form action="attendMarket" method="post" class="attend-form">
+                                                <input type="hidden" name="eventId" value="<%= eventId %>" />
+                                                <button type="submit" class="btn-attend-inline">Attend Market</button>
+                                            </form>
+                                        <% } %>
+                                    <% } else if ("Supplier".equals(homeUserType)) { %>
+                                        <span style="font-size: 0.8rem; color: #1a4329; font-weight: 600;">View Supplier Logistics</span>
+                                    <% } else if ("Customer".equals(homeUserType)) { %>
+                                        <span style="font-size: 0.8rem; color: #1a4329; font-weight: 600;">Open to Public</span>
+                                    <% } %>
+                                    </div>
+                                </div>
                             </li>
                 <%
                         }

@@ -17,10 +17,11 @@
             try (Connection con = DriverManager.getConnection(dbUrl, dbUser, dbPass);
             
             // Utilizes an SQL query statement to check if the entered email and password exist in the User table in our database.
-            PreparedStatement stmt = con.prepareStatement("SELECT * FROM User WHERE Email = ? AND Password = ?")) {
+            PreparedStatement stmt = con.prepareStatement("SELECT * FROM User WHERE Email = ? AND Password = ? AND UserType = ?")) {
                 
             stmt.setString(1, email);
             stmt.setString(2, password);
+            stmt.setString(3, userType);
                 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
