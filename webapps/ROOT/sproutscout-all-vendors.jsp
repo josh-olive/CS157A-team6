@@ -17,7 +17,7 @@
         <div class="login-modal-box">
             <span class="close-btn" onclick="closeLoginModal()">&times;</span>
             <h3>Account Login</h3>
-            <form action="login" method="post">
+            <form action="sproutscout-auth.jsp?action=login" method="post">
                 <select name="userType" required>
                     <option value="" disabled selected>Select user type...</option>
                     <option value="Customer">Customer</option>
@@ -79,11 +79,32 @@
                             String email = rs.getString("UserEmail");
                 %>
                             <li class="vendor-card">
+                                <a href="sproutscout-vendor-home.jsp?vendor=<%= java.net.URLEncoder.encode(name, "UTF-8") %>" class="vendor-card-link">
                                 <span class="vendor-type-badge"> 🔖 <%= (type != null ? type : "General Vendor") %></span>
                                 <h3 class="vendor-name"><%= name %></h3>
+                                <%
+                                    double averageRating = 0.0;
+                                    int reviewCount = 0;
+                                    String ratingSql = "SELECT r.Rating FROM sproutscout.review r " +
+                                                       "JOIN sproutscout.writes w ON r.ReviewID = w.ReviewId " +
+                                                       "WHERE w.VendorEmail = ?";
+                                    try (PreparedStatement ratingStmt = con.prepareStatement(ratingSql)) {
+                                        ratingStmt.setString(1, email);
+                                        try (ResultSet ratingRs = ratingStmt.executeQuery()) {
+                                            int totalRating = 0;
+                                            while (ratingRs.next()) {
+                                                totalRating += ratingRs.getInt("Rating");
+                                                reviewCount++;
+                                            }
+                                            if (reviewCount > 0) averageRating = (double) totalRating / reviewCount;
+                                        }
+                                    }
+                                %>
+                                <div class="vendor-rating">&#9733; <%= String.format("%.1f", averageRating) %> (<%= reviewCount %>)</div>
                                 <div class="vendor-email">
                                     <strong>Contact:</strong> <%= email %>
                                 </div>
+                                </a>
                             </li>
                 <%
                         }

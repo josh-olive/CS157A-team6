@@ -1,5 +1,48 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ page import="java.sql.*" %>
+<%@ page import="java.util.HashMap" %>
+<%@ page import="java.util.Map" %>
+<%!
+    private String escapeHtml(String value) {
+        if (value == null) return "";
+        return value.replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                    .replace("\"", "&quot;")
+                    .replace("'", "&#39;");
+    }
+
+    private double getMarketAverageRating(Connection con, String eventId) throws SQLException {
+        String sql = "SELECT v.UserEmail, r.Rating " +
+                     "FROM sproutscout.attends a " +
+                     "JOIN sproutscout.vendor v ON a.VendorName = v.Name " +
+                     "JOIN sproutscout.writes w ON w.VendorEmail = v.UserEmail " +
+                     "JOIN sproutscout.review r ON r.ReviewID = w.ReviewId " +
+                     "WHERE a.EventID = ?";
+
+        Map<String, Integer> vendorTotals = new HashMap<>();
+        Map<String, Integer> vendorCounts = new HashMap<>();
+
+        try (PreparedStatement stmt = con.prepareStatement(sql)) {
+            stmt.setString(1, eventId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String vendorEmail = rs.getString("UserEmail");
+                    vendorTotals.put(vendorEmail, vendorTotals.getOrDefault(vendorEmail, 0) + rs.getInt("Rating"));
+                    vendorCounts.put(vendorEmail, vendorCounts.getOrDefault(vendorEmail, 0) + 1);
+                }
+            }
+        }
+
+        if (vendorTotals.isEmpty()) return 0.0;
+
+        double totalVendorAverages = 0.0;
+        for (String vendorEmail : vendorTotals.keySet()) {
+            totalVendorAverages += (double) vendorTotals.get(vendorEmail) / vendorCounts.get(vendorEmail);
+        }
+        return totalVendorAverages / vendorTotals.size();
+    }
+%>
 <!DOCTYPE html>
 <html>
 <head>
@@ -17,7 +60,7 @@
         <div class="login-modal-box">
             <span class="close-btn" onclick="closeLoginModal()">&times;</span>
             <h3>Account Login</h3>
-            <form action="login" method="post">
+            <form action="sproutscout-auth.jsp?action=login" method="post">
                 <select name="userType" required>
                     <option value="" disabled selected>Select user type...</option>
                     <option value="Customer">Customer</option>
@@ -50,10 +93,95 @@
             ResultSet eventRs = null;
             ResultSet vendorRs = null;
             ResultSet prodRs = null;
+            String reviewMessage = null;
+            boolean reviewSaved = false;
 
             try {
                 Class.forName("com.mysql.cj.jdbc.Driver");
                 con = DriverManager.getConnection(dbUrl, dbUser, dbPass);
+
+                String customerEmail = (String) session.getAttribute("userEmail");
+
+                // Handle vendor review submissions on this same JSP page.
+                if ("submitReview".equals(request.getParameter("action")) &&
+                    "POST".equalsIgnoreCase(request.getMethod())) {
+
+                    if (customerEmail == null || customerEmail.trim().isEmpty()) {
+                        reviewMessage = "Please log in as a customer before submitting a review.";
+                    } else if (selectedVendor == null || selectedVendor.trim().isEmpty()) {
+                        reviewMessage = "A vendor must be selected before submitting a review.";
+                    } else {
+                        String ratingText = request.getParameter("rating");
+                        String content = request.getParameter("content");
+
+                        try {
+                            int rating = Integer.parseInt(ratingText);
+
+                            if (rating < 0 || rating > 5) {
+                                reviewMessage = "Rating must be between 0 and 5 stars.";
+                            } else if (content == null || content.trim().isEmpty()) {
+                                reviewMessage = "Review text cannot be empty.";
+                            } else {
+                                String vendorEmail = null;
+                                String vendorEmailSql = "SELECT UserEmail FROM sproutscout.vendor WHERE Name = ?";
+                                try (PreparedStatement lookupStmt = con.prepareStatement(vendorEmailSql)) {
+                                    lookupStmt.setString(1, selectedVendor);
+                                    try (ResultSet lookupRs = lookupStmt.executeQuery()) {
+                                        if (lookupRs.next()) {
+                                            vendorEmail = lookupRs.getString("UserEmail");
+                                        }
+                                    }
+                                }
+
+                                if (vendorEmail == null || vendorEmail.trim().isEmpty()) {
+                                    reviewMessage = "The selected vendor could not be found.";
+                                } else {
+                                    con.setAutoCommit(false);
+                                    try {
+                                        int nextReviewId = 1;
+                                        String nextIdSql = "SELECT MAX(ReviewID) FROM sproutscout.review";
+                                        try (PreparedStatement nextIdStmt = con.prepareStatement(nextIdSql);
+                                             ResultSet nextIdRs = nextIdStmt.executeQuery()) {
+                                            if (nextIdRs.next()) {
+                                                int maxReviewId = nextIdRs.getInt(1);
+                                                if (!nextIdRs.wasNull()) {
+                                                    nextReviewId = maxReviewId + 1;
+                                                }
+                                            }
+                                        }
+
+                                        String reviewSql = "INSERT INTO sproutscout.review (ReviewID, `Date/Time`, Content, Rating) VALUES (?, NOW(), ?, ?)";
+                                        try (PreparedStatement reviewStmt = con.prepareStatement(reviewSql)) {
+                                            reviewStmt.setInt(1, nextReviewId);
+                                            reviewStmt.setString(2, content.trim());
+                                            reviewStmt.setInt(3, rating);
+                                            reviewStmt.executeUpdate();
+                                        }
+
+                                        String writesSql = "INSERT INTO sproutscout.writes (CustomerEmail, ReviewId, VendorEmail) VALUES (?, ?, ?)";
+                                        try (PreparedStatement writesStmt = con.prepareStatement(writesSql)) {
+                                            writesStmt.setString(1, customerEmail);
+                                            writesStmt.setInt(2, nextReviewId);
+                                            writesStmt.setString(3, vendorEmail);
+                                            writesStmt.executeUpdate();
+                                        }
+
+                                        con.commit();
+                                        reviewSaved = true;
+                                        reviewMessage = "Your review was submitted successfully.";
+                                    } catch (Exception reviewError) {
+                                        try { con.rollback(); } catch (SQLException ignored) {}
+                                        throw reviewError;
+                                    } finally {
+                                        try { con.setAutoCommit(true); } catch (SQLException ignored) {}
+                                    }
+                                }
+                            }
+                        } catch (NumberFormatException invalidRating) {
+                            reviewMessage = "Please select a valid rating from 0 to 5 stars.";
+                        }
+                    }
+                }
 
                 // Query Event Header details from event table (Name, Address, Date/Time)
                 String eventSql = "SELECT Name, Address, `Date/Time` FROM sproutscout.event WHERE EventId = ?";
@@ -65,6 +193,7 @@
                     String marketName = eventRs.getString("Name");
                     String address = eventRs.getString("Address");
                     String dateTime = eventRs.getString("Date/Time");
+                    double marketAverageRating = getMarketAverageRating(con, eventIdParam);
         %>
 
                 <!-- Back button to home if no vendor selected, otherwise back to vendor list view from product view -->
@@ -80,7 +209,7 @@
                     <% if (dateTime != null && !dateTime.trim().isEmpty()) { %>
                         <p class="market-info-row"><strong>Date & Time:</strong> <%= dateTime %></p>
                     <% } %>
-                    <p class="market-info-row"><strong>Rating:</strong> &#9733; 4.8</p> 
+                    <p class="market-info-row"><strong>Rating:</strong> &#9733; <%= String.format("%.1f", marketAverageRating) %> / 5</p> 
                 </div>
 
                 <% if (selectedVendor == null || selectedVendor.trim().isEmpty()) { %>
@@ -109,13 +238,32 @@
                                 hasVendors = true;
                                 String vName = vendorRs.getString("Name");
                                 String vType = vendorRs.getString("Type");
+                                double vendorAverageRating = 0.0;
+                                int vendorReviewCount = 0;
+                                String vendorRatingSql = "SELECT r.Rating FROM sproutscout.review r " +
+                                                         "JOIN sproutscout.writes w ON r.ReviewID = w.ReviewId " +
+                                                         "JOIN sproutscout.vendor v2 ON w.VendorEmail = v2.UserEmail " +
+                                                         "WHERE v2.Name = ?";
+                                try (PreparedStatement vendorRatingStmt = con.prepareStatement(vendorRatingSql)) {
+                                    vendorRatingStmt.setString(1, vName);
+                                    try (ResultSet vendorRatingRs = vendorRatingStmt.executeQuery()) {
+                                        int vendorTotalRating = 0;
+                                        while (vendorRatingRs.next()) {
+                                            vendorTotalRating += vendorRatingRs.getInt("Rating");
+                                            vendorReviewCount++;
+                                        }
+                                        if (vendorReviewCount > 0) {
+                                            vendorAverageRating = (double) vendorTotalRating / vendorReviewCount;
+                                        }
+                                    }
+                                }
                         %>
                                 <li>
-                                    <a href="sproutscout-vendors.jsp?id=<%= eventIdParam %>&vendor=<%= java.net.URLEncoder.encode(vName, "UTF-8") %>" class="vendor-card-link">
+                                    <a href="sproutscout-vendor-home.jsp?vendor=<%= java.net.URLEncoder.encode(vName, "UTF-8") %>&returnEventId=<%= java.net.URLEncoder.encode(eventIdParam, "UTF-8") %>" class="vendor-card-link">
                                         <div class="vendor-card">
                                             <span class="vendor-type-badge">🔖 <%= (vType != null ? vType : "Vendor") %></span>
                                             <h3 class="vendor-name"><%= vName %></h3>
-                                            <div class="vendor-rating">&#9733; 4.9</div>
+                                            <div class="vendor-rating">&#9733; <%= String.format("%.1f", vendorAverageRating) %> (<%= vendorReviewCount %>)</div>
                                         </div>
                                     </a>
                                 </li>
@@ -152,7 +300,7 @@
                                         boolean isActive = selectedVendor.equals(sName);
                                 %>
                                         <li>
-                                            <a href="sproutscout-vendors.jsp?id=<%= eventIdParam %>&vendor=<%= java.net.URLEncoder.encode(sName, "UTF-8") %>" 
+                                            <a href="sproutscout-vendor-home.jsp?vendor=<%= java.net.URLEncoder.encode(sName, "UTF-8") %>&returnEventId=<%= java.net.URLEncoder.encode(eventIdParam, "UTF-8") %>" 
                                                class="vendor-nav-item <%= isActive ? "active" : "" %>">
                                                 <span class="nav-vendor-name"><%= sName %></span>
                                                 <span class="nav-vendor-type">🔖 <%= (sType != null ? sType : "Vendor") %></span>
@@ -164,7 +312,6 @@
                                     if (sideStmt != null) sideStmt.close();
                                 %>
                             </ul>
-                        </div>
 
                         <!-- Right Column: Storefront Products Panel with Product Search -->
                         <div class="storefront-main">
@@ -226,6 +373,129 @@
                                     }
                                 %>
                             </ul>
+
+                            <%
+                                String displayVendorEmail = null;
+                                String displayVendorEmailSql = "SELECT UserEmail FROM sproutscout.vendor WHERE Name = ?";
+                                try (PreparedStatement displayVendorStmt = con.prepareStatement(displayVendorEmailSql)) {
+                                    displayVendorStmt.setString(1, selectedVendor);
+                                    try (ResultSet displayVendorRs = displayVendorStmt.executeQuery()) {
+                                        if (displayVendorRs.next()) {
+                                            displayVendorEmail = displayVendorRs.getString("UserEmail");
+                                        }
+                                    }
+                                }
+
+                                double averageRating = 0.0;
+                                int reviewCount = 0;
+                                if (displayVendorEmail != null) {
+                                    String ratingSql = "SELECT r.Rating " +
+                                                       "FROM sproutscout.review r " +
+                                                       "JOIN sproutscout.writes w ON r.ReviewID = w.ReviewId " +
+                                                       "WHERE w.VendorEmail = ?";
+                                    try (PreparedStatement ratingStmt = con.prepareStatement(ratingSql)) {
+                                        ratingStmt.setString(1, displayVendorEmail);
+                                        try (ResultSet ratingRs = ratingStmt.executeQuery()) {
+                                            int totalRating = 0;
+                                            while (ratingRs.next()) {
+                                                totalRating += ratingRs.getInt("Rating");
+                                                reviewCount++;
+                                            }
+                                            if (reviewCount > 0) {
+                                                averageRating = (double) totalRating / reviewCount;
+                                            }
+                                        }
+                                    }
+                                }
+                            %>
+
+                            <div class="vendor-review-summary">
+                                <h2>Customer Reviews</h2>
+                                <div class="vendor-average-rating">
+                                    <span class="review-stars"><%= reviewCount > 0 ? "★" : "☆" %></span>
+                                    <strong><%= String.format("%.1f", averageRating) %> / 5</strong>
+                                    <span>(<%= reviewCount %> review<%= reviewCount == 1 ? "" : "s" %>)</span>
+                                </div>
+                            </div>
+
+                            <% if (reviewMessage != null) { %>
+                                <div class="review-message <%= reviewSaved ? "review-success" : "review-error" %>">
+                                    <%= escapeHtml(reviewMessage) %>
+                                </div>
+                            <% } %>
+
+                            <% if (customerEmail != null && !customerEmail.trim().isEmpty()) { %>
+                                <form class="review-form" method="post" action="sproutscout-vendors.jsp">
+                                    <input type="hidden" name="action" value="submitReview">
+                                    <input type="hidden" name="id" value="<%= escapeHtml(eventIdParam) %>">
+                                    <input type="hidden" name="vendor" value="<%= escapeHtml(selectedVendor) %>">
+
+                                    <label for="rating">Your rating</label>
+                                    <select name="rating" id="rating" required>
+                                        <option value="">Choose a rating</option>
+                                        <option value="5">★★★★★ - 5</option>
+                                        <option value="4">★★★★☆ - 4</option>
+                                        <option value="3">★★★☆☆ - 3</option>
+                                        <option value="2">★★☆☆☆ - 2</option>
+                                        <option value="1">★☆☆☆☆ - 1</option>
+                                        <option value="0">☆☆☆☆☆ - 0</option>
+                                    </select>
+
+                                    <label for="reviewContent">Your review</label>
+                                    <textarea name="content" id="reviewContent" maxlength="1000" required
+                                              placeholder="Tell other customers about this vendor..."></textarea>
+                                    <button type="submit" class="btn-submit">Submit Review</button>
+                                </form>
+                            <% } else { %>
+                                <p class="review-login-note">Please log in to write a review.</p>
+                            <% } %>
+
+                            <div class="review-list">
+                                <%
+                                    boolean hasReviews = false;
+                                    if (displayVendorEmail != null) {
+                                        String reviewsSql = "SELECT r.Rating, r.Content, r.`Date/Time`, " +
+                                                            "u.FirstName, u.LastName " +
+                                                            "FROM sproutscout.review r " +
+                                                            "JOIN sproutscout.writes w ON r.ReviewID = w.ReviewId " +
+                                                            "JOIN sproutscout.`user` u ON w.CustomerEmail = u.Email " +
+                                                            "WHERE w.VendorEmail = ? " +
+                                                            "ORDER BY r.`Date/Time` DESC";
+                                        try (PreparedStatement reviewsStmt = con.prepareStatement(reviewsSql)) {
+                                            reviewsStmt.setString(1, displayVendorEmail);
+                                            try (ResultSet reviewsRs = reviewsStmt.executeQuery()) {
+                                                while (reviewsRs.next()) {
+                                                    hasReviews = true;
+                                                    int reviewRating = reviewsRs.getInt("Rating");
+                                                    String reviewContent = reviewsRs.getString("Content");
+                                                    String firstName = reviewsRs.getString("FirstName");
+                                                    String lastName = reviewsRs.getString("LastName");
+                                                    String reviewDate = reviewsRs.getString("Date/Time");
+                                %>
+                                                    <article class="review-card">
+                                                        <div class="review-card-header">
+                                                            <strong><%= escapeHtml(firstName) %> <%= escapeHtml(lastName) %></strong>
+                                                            <span class="review-card-date"><%= escapeHtml(reviewDate) %></span>
+                                                        </div>
+                                                        <div class="review-stars">
+                                                            <% for (int star = 1; star <= 5; star++) { %>
+                                                                <%= star <= reviewRating ? "★" : "☆" %>
+                                                            <% } %>
+                                                        </div>
+                                                        <p><%= escapeHtml(reviewContent) %></p>
+                                                    </article>
+                                <%
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (!hasReviews) {
+                                %>
+                                        <p class="no-reviews">No reviews yet. Be the first to review this vendor.</p>
+                                <%
+                                    }
+                                %>
+                            </div>
                         </div>
 
                     </div>

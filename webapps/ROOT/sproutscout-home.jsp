@@ -1,5 +1,39 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ page import="java.sql.*" %>
+<%@ page import="java.util.HashMap" %>
+<%@ page import="java.util.Map" %>
+<%!
+    private double getMarketAverageRating(Connection con, String eventId) throws SQLException {
+        String sql = "SELECT v.UserEmail, r.Rating " +
+                     "FROM sproutscout.attends a " +
+                     "JOIN sproutscout.vendor v ON a.VendorName = v.Name " +
+                     "JOIN sproutscout.writes w ON w.VendorEmail = v.UserEmail " +
+                     "JOIN sproutscout.review r ON r.ReviewID = w.ReviewId " +
+                     "WHERE a.EventID = ?";
+
+        Map<String, Integer> vendorTotals = new HashMap<>();
+        Map<String, Integer> vendorCounts = new HashMap<>();
+
+        try (PreparedStatement stmt = con.prepareStatement(sql)) {
+            stmt.setString(1, eventId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String vendorEmail = rs.getString("UserEmail");
+                    vendorTotals.put(vendorEmail, vendorTotals.getOrDefault(vendorEmail, 0) + rs.getInt("Rating"));
+                    vendorCounts.put(vendorEmail, vendorCounts.getOrDefault(vendorEmail, 0) + 1);
+                }
+            }
+        }
+
+        if (vendorTotals.isEmpty()) return 0.0;
+
+        double totalVendorAverages = 0.0;
+        for (String vendorEmail : vendorTotals.keySet()) {
+            totalVendorAverages += (double) vendorTotals.get(vendorEmail) / vendorCounts.get(vendorEmail);
+        }
+        return totalVendorAverages / vendorTotals.size();
+    }
+%>
 <!DOCTYPE html>
 <html>
 <head>
@@ -79,13 +113,14 @@
                             String name = rs.getString("Name");
                             String address = rs.getString("Address");
                             String dateTime = rs.getString("Date/Time");
+                            double marketAverageRating = getMarketAverageRating(con, String.valueOf(eventId));
                 %>
                             <li class="market-card">
                                 <!-- eventid from the event table passed into the URL query string -->
                                 <a href="sproutscout-vendors.jsp?id=<%= eventId %>" class="market-link">
                                     <div class="card-header">
                                         <h3 class="market-name"><%= name %></h3>
-                                        <span class="market-rating">&#9733; 4.8</span>
+                                        <span class="market-rating">&#9733; <%= String.format("%.1f", marketAverageRating) %></span>
                                     </div>
                                     <p class="market-address">
                                         <strong>Location:</strong> <%= (address != null && !address.trim().isEmpty() ? address : "Address unavailable") %>
